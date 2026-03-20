@@ -17,7 +17,7 @@ resource "google_storage_bucket" "auto-expire" {
 
 
 resource "terraform_data" "parallelism_test" {
-  count = 20
+  count = 40
 
   # The 'input' stores the index so each resource is unique
   input = count.index
