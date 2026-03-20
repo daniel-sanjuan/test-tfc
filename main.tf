@@ -14,3 +14,18 @@ resource "google_storage_bucket" "auto-expire" {
 #     }
 #   }
 }
+
+
+resource "terraform_data" "parallelism_test" {
+  count = 20
+
+  # The 'input' stores the index so each resource is unique
+  input = count.index
+
+  provisioner "local-exec" {
+    # 'sleep 10' forces the resource to stay in "Creating..." state.
+    # If parallelism=20 is working, all 20 will start simultaneously.
+    # If it's the default (10), you'll see two batches of 10.
+    command = "echo 'Starting resource ${count.index}...'; sleep 10; echo 'Finished resource ${count.index}.'"
+  }
+}
