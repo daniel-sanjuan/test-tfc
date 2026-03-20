@@ -26,6 +26,6 @@ resource "terraform_data" "parallelism_test" {
     # 'sleep 10' forces the resource to stay in "Creating..." state.
     # If parallelism=20 is working, all 20 will start simultaneously.
     # If it's the default (10), you'll see two batches of 10.
-    command = "echo 'Starting resource ${count.index}...'; sleep 10; echo 'Finished resource ${count.index}.'"
+    command = "echo 'Starting resource ${count.index}...'; sleep 20; echo 'Finished resource ${count.index}.'"
   }
 }
