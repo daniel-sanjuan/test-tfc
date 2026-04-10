@@ -6,23 +6,13 @@ resource "google_storage_bucket" "auto-expire" {
   force_destroy               = true
   uniform_bucket_level_access = true
 
-#   lifecycle_rule {
-#     condition {
-#       age = 3
-#     }
-#     action {
-#       type = "Delete"
-#     }
-#   }
+  #   lifecycle_rule {
+  #     condition {
+  #       age = 3
+  #     }
+  #     action {
+  #       type = "Delete"
+  #     }
+  #   }
 }
 
-resource "terraform_data" "parallelism_test" {
-  count = 40
-
-  # The 'input' stores the index so each resource is unique
-  input = count.index
-
-  provisioner "local-exec" {
-    command = "echo 'Starting resource ${count.index}...'; sleep 20; echo 'Finished resource ${count.index}.'"
-  }
-}
