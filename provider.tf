@@ -1,5 +1,5 @@
 terraform {
-  required_version = "~>1.12.2"
+  required_version = "~> 1.14.8"
 
   required_providers {
     google = {
@@ -13,6 +13,12 @@ terraform {
   }
 }
 
-provider "google" {}
+provider "google" {
+  project = "pg-gccoe-daniel-sanjuan"
+  region  = "europe-west1"
+}
 
-provider "google-beta" {}
+provider "google-beta" {
+  project = "pg-gccoe-daniel-sanjuan"
+  region  = "europe-west1"
+}
