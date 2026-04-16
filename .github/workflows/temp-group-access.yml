@@ -35,6 +35,7 @@ jobs:
         run: |
           echo "User executing: ${{ github.actor }}"
 
+          # Current approach: flat list of authorised GitHub usernames (env.ALLOWED_USERS)
           IFS=',' read -r -a allowed_array <<< "$ALLOWED_USERS"
           is_allowed=false
           for user in "${allowed_array[@]}"; do
@@ -51,6 +52,20 @@ jobs:
           else
             echo "✅ Authorised user."
           fi
+
+          # TODO (team review): Alternative approach using a GitHub Team as the source of truth.
+          # Pros: team membership is managed by GitHub org admins (tamper-proof), no flat list to maintain.
+          # Requires: GITHUB_TOKEN with read:org scope and a GitHub Team (e.g. "group-access-managers").
+          #
+          # STATUS=$(gh api orgs/YOUR_ORG/teams/YOUR_TEAM/memberships/${{ github.actor }} \
+          #   --jq '.state' 2>/dev/null || echo "not_found")
+          #
+          # if [ "$STATUS" != "active" ]; then
+          #   echo "❌ ERROR: ${{ github.actor }} is not a member of the authorised team."
+          #   exit 1
+          # else
+          #   echo "✅ Authorised user."
+          # fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
