@@ -1,0 +1,31 @@
+name: Temporary Access Request
+description: Request temporary membership to a Google Group
+labels: ["access-request"]
+body:
+  - type: input
+    id: group_email
+    label: Group Email
+    description: Google Group to join (must be @sngular.com)
+    placeholder: "my-group@sngular.com"
+    validations:
+      required: true
+  - type: input
+    id: member_email
+    label: Member Email
+    description: Email of the person to add
+    placeholder: "person@sngular.com"
+    validations:
+      required: true
+  - type: input
+    id: duration_hours
+    label: Duration (hours)
+    description: How long should the access last? Max 168h (7 days)
+    placeholder: "24"
+    validations:
+      required: true
+  - type: textarea
+    id: justification
+    label: Business Justification
+    description: Why is this access needed?
+    validations:
+      required: true

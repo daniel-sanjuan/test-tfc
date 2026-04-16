@@ -1,0 +1,122 @@
+name: Temporary Group Access (Issue-based)
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  add-temp-member:
+    # Only runs for issues created from the access-request template (identified by its label)
+    if: contains(github.event.issue.labels.*.name, 'access-request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write      # Required for OIDC (Workload Identity)
+      issues: write        # Required to comment and close the issue
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Log Request (Audit Trail)
+        run: |
+          echo "Request submitted by: ${{ github.event.issue.user.login }}"
+          echo "Issue: #${{ github.event.issue.number }} - ${{ github.event.issue.title }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+      - name: Parse Issue Inputs
+        id: parse
+        run: |
+          BODY=$(cat << 'ISSUE_BODY'
+          ${{ github.event.issue.body }}
+          ISSUE_BODY
+          )
+
+          GROUP=$(echo "$BODY" | awk '/### Group Email/{found=1; next} found && NF{print; exit}' | xargs)
+          MEMBER=$(echo "$BODY" | awk '/### Member Email/{found=1; next} found && NF{print; exit}' | xargs)
+          DURATION=$(echo "$BODY" | awk '/### Duration \(hours\)/{found=1; next} found && NF{print; exit}' | xargs)
+
+          echo "group=$GROUP" >> $GITHUB_OUTPUT
+          echo "member=$MEMBER" >> $GITHUB_OUTPUT
+          echo "duration=$DURATION" >> $GITHUB_OUTPUT
+
+          echo "Parsed inputs — Group: $GROUP | Member: $MEMBER | Duration: ${DURATION}h"
+
+      - name: Validate Inputs
+        run: |
+          GROUP="${{ steps.parse.outputs.group }}"
+          MEMBER="${{ steps.parse.outputs.member }}"
+          DURATION="${{ steps.parse.outputs.duration }}"
+
+          # Validate group email domain
+          REGEX_PATTERN="^.*@sngular\.com$"
+          if [[ ! "$GROUP" =~ $REGEX_PATTERN ]]; then
+            echo "❌ ERROR: Group '$GROUP' does not match the allowed naming pattern."
+            exit 1
+          fi
+
+          # Validate duration is a number
+          if ! [[ "$DURATION" =~ ^[0-9]+$ ]]; then
+            echo "❌ ERROR: Duration '$DURATION' is not a valid number."
+            exit 1
+          fi
+
+          # Validate maximum duration
+          if [ "$DURATION" -gt 168 ]; then
+            echo "❌ ERROR: Maximum allowed duration is 168 hours (7 days)."
+            exit 1
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Add Temporary Membership
+        run: |
+          GROUP="${{ steps.parse.outputs.group }}"
+          MEMBER="${{ steps.parse.outputs.member }}"
+          DURATION="${{ steps.parse.outputs.duration }}"
+          EXPIRATION="${DURATION}h"
+
+          echo "Adding $MEMBER to group $GROUP for ${DURATION}h"
+
+          gcloud identity groups memberships add \
+            --group-email="$GROUP" \
+            --member-email="$MEMBER" \
+            --roles="MEMBER" \
+            --expiration="$EXPIRATION"
+
+      - name: Comment Result on Issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const success = '${{ job.status }}' === 'success';
+            const group = '${{ steps.parse.outputs.group }}';
+            const member = '${{ steps.parse.outputs.member }}';
+            const duration = '${{ steps.parse.outputs.duration }}';
+
+            const body = success
+              ? `✅ **Access granted**\n\n- **Member:** ${member}\n- **Group:** ${group}\n- **Duration:** ${duration}h\n- **Requested by:** ${{ github.event.issue.user.login }}\n- **Processed at:** ${new Date().toISOString()}\n\nAccess will expire automatically in GCP.`
+              : `❌ **Access request failed**\n\nPlease check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });
+
+            if (success) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                state: 'closed'
+              });
+            }
