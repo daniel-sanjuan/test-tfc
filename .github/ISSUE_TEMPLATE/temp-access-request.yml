@@ -1,6 +1,8 @@
 name: Temporary Access Request
 description: Request temporary membership to a Google Group
-labels: ["access-request"]
+title: "[Access Request] "
+labels:
+  - access-request
 body:
   - type: input
     id: group_email
