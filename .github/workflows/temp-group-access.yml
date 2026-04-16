@@ -80,15 +80,14 @@ jobs:
             exit 1
           fi
 
-          echo "Calculating expiration date..."
-          EXPIRATION_DATE=$(date -u -d "$DURATION hours" +"%Y-%m-%dT%H:%M:%SZ")
+          EXPIRATION_ISO="PT${DURATION}H"
 
-          echo "Adding $MEMBER to group $GROUP until $EXPIRATION_DATE"
+          echo "Adding $MEMBER to group $GROUP for $DURATION hours (expiration: $EXPIRATION_ISO)"
 
           gcloud identity groups memberships add \
             --group-email="$GROUP" \
             --member-email="$MEMBER" \
             --roles="MEMBER" \
-            --expiration="$EXPIRATION_DATE"
+            --expiration="$EXPIRATION_ISO"
 
           echo "✅ Done. Access will expire automatically in GCP at the indicated date."
