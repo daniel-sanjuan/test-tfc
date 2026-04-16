@@ -1,0 +1,94 @@
+name: Temporary Group Access
+
+on:
+  workflow_dispatch:
+    inputs:
+      group_email:
+        description: "Google Group email (the group the member will be added to)"
+        required: true
+        type: string
+      member_email:
+        description: "Member to add (e.g. person@scopely.com)"
+        required: true
+        type: string
+      duration_hours:
+        description: "Access duration in hours"
+        required: true
+        type: number
+        default: 24
+
+env:
+  ALLOWED_USERS: "daniel-sanjuan" # TODO: Replace with the actual comma-separated list of authorised GitHub users.
+
+jobs:
+  add-temp-member:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC (Workload Identity)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Validate Execution Permission
+        run: |
+          echo "User executing: ${{ github.actor }}"
+
+          IFS=',' read -r -a allowed_array <<< "$ALLOWED_USERS"
+          is_allowed=false
+          for user in "${allowed_array[@]}"; do
+            user=$(echo "$user" | xargs)
+            if [ "$user" == "${{ github.actor }}" ]; then
+              is_allowed=true
+              break
+            fi
+          done
+
+          if [ "$is_allowed" == false ]; then
+            echo "❌ ERROR: User ${{ github.actor }} is not authorised to run this GitHub Action."
+            exit 1
+          else
+            echo "✅ Authorised user."
+          fi
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Add Temporary Membership
+        run: |
+          DURATION=${{ inputs.duration_hours }}
+          GROUP=${{ inputs.group_email }}
+          MEMBER=${{ inputs.member_email }}
+
+          # 1. Security: Regex validation for target groups
+          REGEX_PATTERN="^.*@scopely\.com$" # TODO: Refine this regex (e.g., "^(pam-|gcp-).+@scopely\.com$")
+          if [[ ! "$GROUP" =~ $REGEX_PATTERN ]]; then
+            echo "❌ ERROR: Group '$GROUP' does not match the allowed naming pattern."
+            exit 1
+          fi
+
+          # 2. Security: Maximum duration limit
+          if [ "$DURATION" -gt 168 ]; then
+            echo "❌ ERROR: Maximum allowed duration is 168 hours (7 days)."
+            exit 1
+          fi
+
+          echo "Calculating expiration date..."
+          EXPIRATION_DATE=$(date -u -d "$DURATION hours" +"%Y-%m-%dT%H:%M:%SZ")
+
+          echo "Adding $MEMBER to group $GROUP until $EXPIRATION_DATE"
+
+          gcloud identity groups memberships add \
+            --group-email="$GROUP" \
+            --member-email="$MEMBER" \
+            --roles="MEMBER" \
+            --expiration="$EXPIRATION_DATE"
+
+          echo "✅ Done. Access will expire automatically in GCP at the indicated date."
