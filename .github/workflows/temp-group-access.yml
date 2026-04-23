@@ -50,7 +50,7 @@ jobs:
           REGEX_PATTERN="${{ vars.ALLOWED_GROUP_PATTERN }}"
           REGEX_PATTERN="${REGEX_PATTERN:-^temp-.+@scopely\.com$}"
           if [[ ! "$GROUP" =~ $REGEX_PATTERN ]]; then
-            echo "❌ ERROR: Group '$GROUP' does not match the allowed naming pattern."
+            echo "❌ ERROR: Group '$GROUP' does not match the allowed naming pattern $REGEX_PATTERN."
             exit 1
           fi
 
