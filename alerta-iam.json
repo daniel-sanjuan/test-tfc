@@ -1,0 +1,33 @@
+{
+  "name": "projects/pg-gccoe-daniel-sanjuan/alertPolicies/18363929096623816066",
+  "displayName": "IAM Alert: Monitored Users Permissions Granted",
+  "documentation": {
+    "content": "## 🚨 IAM Security Alert\n\nA permission grant has been detected for one of the monitored users.\n\n### Event Details:\n* **Granted by (Actor):** `${log.extracted_label.actor}`\n* **Granted to (Principal):** `${log.extracted_label.principal}`\n* **Role detected:** `${log.extracted_label.rol}` (Note: only the first detected role is shown here)\n* **Target Resource:** `${log.extracted_label.recurso}`\n\n### 🔍 Action Required:\nMultiple roles might have been assigned in this single operation. \n[**VIEW FULL AUDIT LOG DETAILS**](https://console.cloud.google.com/logs/query;query=insertId%3D%22${log.extracted_label.log_id}%22?project=pg-gccoe-daniel-sanjuan)\n\nPlease verify if this action was expected.",
+    "mimeType": "text/markdown"
+  },
+  "conditions": [
+    {
+      "displayName": "IAM Log Match",
+      "conditionMatchedLog": {
+        "filter": "logName=\"projects/pg-gccoe-daniel-sanjuan/logs/cloudaudit.googleapis.com%2Factivity\" AND protoPayload.methodName=\"SetIamPolicy\" AND protoPayload.serviceData.policyDelta.bindingDeltas.action=\"ADD\" AND protoPayload.serviceData.policyDelta.bindingDeltas.member =~ \"user:(josemiguel.hernandez@sngular.com|otro.usuario@sngular.com)\"",
+        "labelExtractors": {
+          "actor": "EXTRACT(protoPayload.authenticationInfo.principalEmail)",
+          "principal": "EXTRACT(protoPayload.serviceData.policyDelta.bindingDeltas.member)",
+          "rol": "EXTRACT(protoPayload.serviceData.policyDelta.bindingDeltas.role)",
+          "recurso": "EXTRACT(protoPayload.resourceName)",
+          "log_id": "EXTRACT(insertId)"
+        }
+      }
+    }
+  ],
+  "combiner": "OR",
+  "enabled": true,
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "300s"
+    }
+  },
+  "notificationChannels": [
+    "projects/pg-gccoe-daniel-sanjuan/notificationChannels/12580232066116665391"
+  ]
+}

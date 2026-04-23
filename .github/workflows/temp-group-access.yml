@@ -47,7 +47,8 @@ jobs:
           MEMBER=${{ inputs.member_email }}
 
           # 1. Security: Regex validation for target groups
-          REGEX_PATTERN="^.*@sngular\.com$" # TODO: Refine this regex (e.g., "^(pam-|gcp-).+@sngular\.com$")
+          REGEX_PATTERN="${{ vars.ALLOWED_GROUP_PATTERN }}"
+          REGEX_PATTERN="${REGEX_PATTERN:-^temp-.+@scopely\.com$}"
           if [[ ! "$GROUP" =~ $REGEX_PATTERN ]]; then
             echo "❌ ERROR: Group '$GROUP' does not match the allowed naming pattern."
             exit 1
